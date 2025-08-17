@@ -1,63 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ghost Private Send</title>
-<style>
-body{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:black;margin:0;color:white;font-family:sans-serif;}
-img{width:150px;margin-bottom:20px;}
-button{font-size:18px;padding:14px 32px;border-radius:50px;border:none;cursor:pointer;background:linear-gradient(90deg,#6f00ff,#00f5ff);color:white;}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ghost Private Send</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: black;
+      margin: 0;
+    }
+    img {
+      width: 150px;
+      margin-bottom: 20px;
+    }
+    button {
+      font-size: 18px;
+      padding: 14px 32px;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(90deg, #6f00ff, #00f5ff);
+      color: white;
+    }
+  </style>
 </head>
 <body>
-<img src="https://cryptologos.cc/logos/phantom-crypto-phantom-logo.png" alt="Phantom Ghost">
-<button id="ghostBtn">👻 Send Privately</button>
+  <img src="https://cryptologos.cc/logos/phantom-crypto-phantom-logo.png" alt="Phantom Ghost" />
+  <button id="ghostBtn">👻 Send Privately</button>
 
-<script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
-<script src="https://unpkg.com/@elusiv/sdk@latest/dist/elusiv-sdk.iife.js"></script>
-<script>
-(async()=>{
-  const {Connection, PublicKey, LAMPORTS_PER_SOL} = window.solanaWeb3;
-  const {Elusiv, getParams} = window.ElusivSDK;
-  const btn=document.getElementById("ghostBtn");
-  const cluster="devnet";
-  const conn=new Connection("https://api.devnet.solana.com","confirmed");
-  let wallet=null, elusiv=null;
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
+  <script type="module">
+    // Polyfills for browser compatibility
+    if (typeof process === 'undefined') {
+      window.process = { browser: true };
+    }
+    import * as ed from 'https://unpkg.com/@noble/ed25519@latest?module';
+    import { sha512 } from 'https://unpkg.com/@noble/hashes@latest/sha512.js?module';
+    ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
+    import { Elusiv, getParams } from 'https://unpkg.com/@elusiv/sdk@latest/index.mjs?module';
 
-  btn.addEventListener("click", async ()=>{
-    if (!window.solana || !window.solana.isPhantom) {
-      alert("Phantom wallet not detected. Open in a browser with Phantom installed.");
-      return;
-    }
-    if(!wallet){
-      wallet=window.solana;
-      try{
-        await wallet.connect();
-        btn.textContent="✅ Wallet Connected";
-        const seed=await wallet.signMessage(new TextEncoder().encode("elusiv"));
-        const params=getParams({seed,cluster,appId:"ghost-demo"});
-        elusiv=await Elusiv.getElusivInstance(params,conn);
-      }catch(e){ alert("Connect failed: "+e.message); return; }
-      return;
-    }
+    const { Connection, PublicKey, LAMPORTS_PER_SOL } = window.solanaWeb3;
+    const btn = document.getElementById("ghostBtn");
+    let wallet = null, elusiv = null;
+    const cluster = "devnet";
+    const conn = new Connection("https://api.devnet.solana.com", "confirmed");
 
-    try{
-      const solAmount=parseFloat(prompt("Enter SOL amount (e.g. 0.01):","0.001"));
-      if(isNaN(solAmount)||solAmount<=0){ alert("Invalid amount"); return; }
-      const recipientStr=prompt("Enter recipient address:", wallet.publicKey.toBase58());
-      if(!recipientStr) return;
-      const recipient=new PublicKey(recipientStr);
-      const lamports=BigInt(Math.floor(solAmount*LAMPORTS_PER_SOL));
-      const sendTx=await elusiv.buildSendTx(lamports,recipient,"LAMPORTS");
-      const signed=await wallet.signTransaction(sendTx.tx);
-      const sig=await elusiv.sendElusivTx(signed);
-      btn.textContent=`✅ Sent ${solAmount} SOL (Tx: ${sig.signature.slice(0,8)}…)`;
-    }catch(err){
-      alert("Send failed: "+(err?.message||err));
-    }
-  });
-})();
-</script>
+    btn.addEventListener("click", async () => {
+      if (!wallet) {
+        try {
+          await window.solana.connect();
+          wallet = window.solana;
+          btn.textContent = "Wallet Connected 👻";
+          const seed = await wallet.signMessage(new TextEncoder().encode("elusiv"));
+          const params = getParams({ seed, cluster, appId: "ghost-demo" });
+          elusiv = await Elusiv.getElusivInstance(params, conn);
+        } catch (err) {
+          alert("Connect failed: " + err.message);
+        }
+        return;
+      }
+
+      try {
+        const solAmount = parseFloat(prompt("Enter SOL amount (e.g. 0.01):", "0.001"));
+        if (isNaN(solAmount) || solAmount <= 0) return alert("Invalid amount");
+        const recipientStr = prompt("Enter recipient address:", wallet.publicKey.toBase58());
+        const recipient = new PublicKey(recipientStr);
+
+        const amountLamports = BigInt(Math.floor(solAmount * LAMPORTS_PER_SOL));
+        const sendTx = await elusiv.buildSendTx(amountLamports, recipient, "LAMPORTS");
+        const signed = await wallet.signTransaction(sendTx.tx);
+        const sig = await elusiv.sendElusivTx(signed);
+
+        btn.textContent = `Sent ${solAmount} SOL 👻 Tx: ${sig.signature.slice(0,8)}...`;
+      } catch (err) {
+        alert("Send failed: " + err.message);
+      }
+    });
+  </script>
 </body>
 </html>
